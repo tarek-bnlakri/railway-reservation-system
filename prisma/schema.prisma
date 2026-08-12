@@ -1,0 +1,95 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Station {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  code        String   @unique
+  location    String
+
+  routesFrom  Route[]  @relation("SourceStation")
+  routesTo    Route[]  @relation("DestStation")
+}
+
+model Train {
+  id             String   @id @default(uuid())
+  name           String
+  number         String   @unique
+  total_capacity Int
+
+  seats          Seat[]
+  trips          Trip[]
+}
+
+model Route {
+  id             String   @id @default(uuid())
+  source_id      String
+  destination_id String
+  base_price     Decimal
+
+  source         Station  @relation("SourceStation", fields: [source_id], references: [id])
+  destination    Station  @relation("DestStation", fields: [destination_id], references: [id])
+  trips          Trip[]
+}
+
+model Trip {
+  id              String   @id @default(uuid())
+  route_id        String
+  train_id        String
+  departure_time  DateTime
+  arrival_time    DateTime
+
+  route           Route    @relation(fields: [route_id], references: [id])
+  train           Train    @relation(fields: [train_id], references: [id])
+  bookings        Booking[]
+}
+
+enum SeatClass {
+  ECONOMY
+  FIRST_CLASS
+}
+
+model Seat {
+  id          String    @id @default(uuid())
+  train_id    String
+  seat_number String
+  seat_class  SeatClass
+
+  train       Train     @relation(fields: [train_id], references: [id])
+  bookings    Booking[]
+}
+
+model User {
+  id            String    @id @default(uuid())
+  name          String
+  email         String    @unique
+  password_hash String
+
+  bookings      Booking[]
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+}
+
+model Booking {
+  id             String        @id @default(uuid())
+  user_id        String
+  seat_id        String
+  trip_id        String
+  status         BookingStatus @default(PENDING)
+  payment_token  String?
+  created_at     DateTime      @default(now())
+  expires_at     DateTime?
+
+  user           User          @relation(fields: [user_id], references: [id])
+  seat           Seat          @relation(fields: [seat_id], references: [id])
+  trip           Trip          @relation(fields: [trip_id], references: [id])
+}
