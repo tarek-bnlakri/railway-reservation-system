@@ -10,7 +10,8 @@ export const authController={
 
             res.status(201).json(user);
 
-        } catch (err:any) {
+        } catch (error) {
+            const err = error as Error;
             res.status(400).json({error:err.message});
         };
     },
@@ -21,7 +22,8 @@ export const authController={
                 const result = await authService.login(email,password);
                 res.status(200).json(result);
 
-            } catch (err:any) {
+            } catch (error) {
+                const err = error as Error;
                 res.status(401).json({error:err.message});
             };
     }
