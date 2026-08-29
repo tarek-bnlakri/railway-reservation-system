@@ -1,8 +1,9 @@
-import type { Request, Response } from "express";
+import type { Response } from "express";
+import type{AuthenticatedRequest} from "../../shared/middlewares/auth.middleware.js";
 import { BookingService } from "./bookings.service.js";
 
 export const BookingController={
-    create:async(req:any,res:Response)=>{
+    create:async(req:AuthenticatedRequest,res:Response)=>{
         try {
                 const {trip_id,seat_id}= req.body
                 console.log("BookingController.create",seat_id,trip_id)

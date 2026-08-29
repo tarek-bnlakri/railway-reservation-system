@@ -1,11 +1,13 @@
 import {prisma} from '../../config/prisma.js'
+import type { Seat } from '@prisma/client';
+
 
 export const BookingRepository={
     createBookingWithLock:async (userId:string, seatId:string, tripId:string)=>{
         console.log("createBookingWithLock",userId,seatId,tripId)
         return prisma.$transaction(async(tx)=>{
 
-            const seatRows:any  =await tx.$queryRaw`
+            const seatRows  =await tx.$queryRaw<Seat[]>`
             SELECT * FROM "Seat" Where id = ${seatId} FOR UPDATE
             `;
 

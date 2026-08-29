@@ -1,9 +1,8 @@
 import type { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
 
-// Extend Express Request to type req.user cleanly
 export interface AuthenticatedRequest extends Request {
-  user?: any;
+  user?: jwt.JwtPayload | string;
 }
 
 export const requireAuth = (
@@ -11,7 +10,6 @@ export const requireAuth = (
   res: Response,
   next: NextFunction
 ) => {
-  // 1. Fix typo: req.headers (not req.headres)
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
@@ -27,7 +25,7 @@ export const requireAuth = (
     );
     req.user = decoded;
     return next();
-  } catch (error) {
+  } catch{
     return res.status(401).json({ error: "INVALID_TOKEN" });
   }
 };

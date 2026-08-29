@@ -10,12 +10,16 @@ vi.mock('../src/modules/bookings/bookings.repository.js', () => ({
 
 describe('BookingsService.createBooking', () => {
   beforeEach(() => {
-    vi.clearAllMocks(); // Resets mock state between tests
+    vi.clearAllMocks(); 
   });
 
   it('calls the repository with correct params and returns the booking', async () => {
     const fakeBooking = { id: 'booking-1', status: 'PENDING' };
-    (BookingRepository.createBookingWithLock as any).mockResolvedValue(fakeBooking);
+    
+    
+    vi.mocked(BookingRepository.createBookingWithLock).mockResolvedValue(
+      fakeBooking as never
+    );
 
     const result = await BookingService .createBooking('user-1', 'seat-1', 'trip-1');
 
@@ -24,7 +28,8 @@ describe('BookingsService.createBooking', () => {
   });
 
   it('propagates errors from the repository (e.g. seat already booked)', async () => {
-    (BookingRepository.createBookingWithLock as any).mockRejectedValue(
+    
+    vi.mocked(BookingRepository.createBookingWithLock).mockRejectedValue(
       new Error('SEAT_ALREADY_BOOKED')
     );
 
