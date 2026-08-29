@@ -1,8 +1,11 @@
 import type { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
 
+export interface UserPayload extends jwt.JwtPayload {
+  userId: string;
+}
 export interface AuthenticatedRequest extends Request {
-  user?: jwt.JwtPayload | string;
+  user?: UserPayload;
 }
 
 export const requireAuth = (
@@ -22,7 +25,7 @@ export const requireAuth = (
     const decoded = jwt.verify(
       token,
       process.env.JWT_SECRET || "fallback_secret"
-    );
+    )as UserPayload;
     req.user = decoded;
     return next();
   } catch{

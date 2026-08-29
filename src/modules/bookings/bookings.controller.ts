@@ -7,7 +7,12 @@ export const BookingController={
         try {
                 const {trip_id,seat_id}= req.body
                 console.log("BookingController.create",seat_id,trip_id)
-                const userId = req.user.userId
+                const userId = req.user?.userId
+                
+                if (!userId){
+                     return res.status(401).json({ error: "UNAUTHORIZED" });
+                }
+                
                 const booking = await BookingService.createBooking(userId,seat_id,trip_id)
                 res.status(201).json(booking)
 
