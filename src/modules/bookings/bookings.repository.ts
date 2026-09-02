@@ -1,5 +1,6 @@
 import {prisma} from '../../config/prisma.js'
 import type { Seat } from '@prisma/client';
+import { redis } from '../../config/redis.js';
 
 
 export const BookingRepository={
@@ -27,7 +28,7 @@ export const BookingRepository={
                     throw new Error("SEAT_ALREADY_BOOKED")
             const expiresAt =  new Date(Date.now()+10*60*1000)
 
-            return tx.booking.create({
+            const booking= await tx.booking.create({
                 data:{
                     user_id:userId,
                     seat_id:seatId,
@@ -36,6 +37,10 @@ export const BookingRepository={
                     expires_at:expiresAt
                 }
             })
+
+            await redis.set(`booking-hold:${booking.id}`,seatId,"EX", 600)
+
+            return booking
 
 
         })

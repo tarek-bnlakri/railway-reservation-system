@@ -3,6 +3,7 @@ import authRoutes from './modules/auth/auth.routes.js'
 import tripsRouter from './modules/trips/trips.routes.js'
 import bookingRouter from './modules/bookings/bookings.routes.js'
 import routeSearchRoutes from './modules/route-search/route-search.routes.js';
+import { startBookingExpiryLisitner } from './modules/bookings/booking-expiry.listener.js';
 const app = express();
 
 app.use(express.json());
@@ -14,4 +15,5 @@ app.use('/api/v1/route-search', routeSearchRoutes);
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT,()=>console.log(`Server running on PORT ${PORT}`))
+startBookingExpiryLisitner();
 
