@@ -85,6 +85,7 @@ model Booking {
   seat_id        String
   trip_id        String
   status         BookingStatus @default(PENDING)
+  final_price    Decimal
   payment_token  String?
   created_at     DateTime      @default(now())
   expires_at     DateTime?
