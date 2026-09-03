@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import {pricingService} from '../src/modules/pricing/pricing.service.js'
 describe('pricingService.calculatePrice',()=>{
     it('should not apply any surrcharge in the normla situation',()=>{
