@@ -15,8 +15,12 @@ export const PaymentController={
 
                 const result = await PaymentService.processPayment(userId,bookingId,idempotencyKey)
                 return res.status(200).json(result)
-        } catch (err:any) {
-            return res.status(400).json({error:err.message})
+        } catch (err: unknown) {
+            if (err instanceof Error) {
+                return res.status(400).json({ error: err.message });
+            }
+    
+            return res.status(500).json({ error: "An unexpected error occurred" });
         }
 
     }
