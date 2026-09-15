@@ -1,5 +1,6 @@
 import { prisma } from "../../config/prisma.js";
 import { redis } from "../../config/redis.js";
+import { publishBookingConfirmed } from "../events/event-publisher.js";
 
 const IDEMPOTENCY_TTL_SECONDS = 86400;
 export const PaymentService ={
@@ -14,7 +15,6 @@ export const PaymentService ={
         if(!booking){
             throw new Error("BOOKING_NOT_FOUND")
         }
-        console.log("ffffffffffffffffffffffff",userId)
         if(booking.user_id!==userId){
             throw new Error("UNAUTHORIZED")
         }
@@ -32,6 +32,8 @@ export const PaymentService ={
             }
         
         })
+        await publishBookingConfirmed({bookingId:updateBooking.id,userId:updateBooking.user_id,finalPrice:Number(updateBooking.final_price)})
+        
         const result = {bookingId:updateBooking.id,status:updateBooking.status,paymentToken:paymentToken}
 
         await redis.set(cacheKey,JSON.stringify(result), 'EX', IDEMPOTENCY_TTL_SECONDS)
