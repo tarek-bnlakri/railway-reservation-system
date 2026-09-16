@@ -17,6 +17,11 @@ services:
     command: redis-server --notify-keyspace-events Ex
     ports:
       - "6379:6379"
-
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    restart: unless-stopped
+    ports:
+      - "5672:5672"   
+      - "15672:15672"
 volumes:
   pgdata:
