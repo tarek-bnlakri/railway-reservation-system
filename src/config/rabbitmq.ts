@@ -1,5 +1,5 @@
 import amqp from 'amqplib';
-import type { Connection, Channel } from 'amqplib';
+import type { Channel } from 'amqplib';
 
 let channel:Channel;
 export async  function connectToRabbitMQ():Promise<Channel>{

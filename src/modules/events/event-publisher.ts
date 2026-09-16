@@ -6,7 +6,7 @@ export async function setupExchange(){
     await channel.assertExchange(EXCHANGE_NAME,'fanout',{durable:true})
 }
 
-export async function publishBookingConfirmed  (payload:{bookingId:string, userId:string, finalPrice:Number}){
+export async function publishBookingConfirmed  (payload:{bookingId:string, userId:string, finalPrice:number}){
    
     const channel = getChannel()
     const message = Buffer.from(JSON.stringify(payload));
