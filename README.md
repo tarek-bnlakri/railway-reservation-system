@@ -11,7 +11,8 @@ A high-concurrency backend system for booking railway tickets, built to explore 
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)
 ![Prisma](https://img.shields.io/badge/Prisma-2D3748?style=for-the-badge&logo=prisma&logoColor=white)
 ![Redis](https://img.shields.io/badge/Redis-DC382D?style=for-the-badge&logo=redis&logoColor=white)
-![Kafka](https://img.shields.io/badge/Kafka-231F20?style=for-the-badge&logo=apachekafka&logoColor=white)
+![RabbitMQ](https://img.shields.io/badge/RabbitMQ-FF6600?style=for-the-badge&logo=rabbitmq&logoColor=white)
+
 
 ---
 
@@ -251,6 +252,74 @@ sequenceDiagram
     Worker->>+Notif: Dispatch "Seat Available - Pay in 10 mins"
     Notif-->>-UserB: 📲 Push/Email Alert ("You've been promoted! Complete checkout.")
 ```
+### 4. Event-Driven Notifications & Dead-Letter Queue (DLQ) Architecture
+
+To decouple heavy post-booking tasks (PDF ticket rendering, email dispatch) from the core checkout transaction, booking completions emit asynchronous events to **RabbitMQ**. The pipeline combines a **`fanout` broadcast exchange** for worker distribution with an isolated **`direct` Dead-Letter Exchange (DLX)** for fault tolerance and triage.
+
+```mermaid
+flowchart TD
+    classDef publisher fill:#1D4ED8,stroke:#1E40AF,stroke-width:2px,color:#fff;
+    classDef fanoutEx fill:#D97706,stroke:#B45309,stroke-width:2px,color:#fff;
+    classDef mainQueue fill:#047857,stroke:#065F46,stroke-width:2px,color:#fff;
+    classDef consumer fill:#0F766E,stroke:#115E59,stroke-width:2px,color:#fff;
+    classDef dlxEx fill:#DC2626,stroke:#991B1B,stroke-width:2px,color:#fff;
+    classDef dlqQueue fill:#881337,stroke:#4C0519,stroke-width:2px,color:#fff;
+
+    subgraph Publisher_Stage ["🚀 1. Event Publisher"]
+        PUB["Payment / Booking Service<br/><code>publishBookingConfirmed()</code>"]:::publisher
+    end
+
+    subgraph Main_Exchange_Stage ["📢 2. Main Broadcast Exchange"]
+        EX1(["Exchange: booking_events<br/><b>type: fanout</b>"]):::fanoutEx
+    end
+
+    subgraph Queues_Stage ["📥 3. Work Queues"]
+        Q_EMAIL["Queue: email_notifications<br/><code>x-dead-letter-exchange: booking_events.dlx</code><br/><code>x-dead-letter-routing-key: email.failed</code>"]:::mainQueue
+        Q_PDF["Queue: pdf_ticket_generation<br/><code>x-dead-letter-exchange: booking_events.dlx</code><br/><code>x-dead-letter-routing-key: pdf.failed</code>"]:::mainQueue
+    end
+
+    subgraph Consumers_Stage ["⚡ 4. Background Workers"]
+        C_EMAIL["📧 Email Consumer<br/><i>Sends confirmation email</i>"]:::consumer
+        C_PDF["🎫 PDF Consumer<br/><i>Renders ticket PDF</i>"]:::consumer
+    end
+
+    subgraph DLX_Stage ["🛡️ 5. Dead Letter Exchange (DLX)"]
+        EX_DLX(["Exchange: booking_events.dlx<br/><b>type: direct</b>"]):::dlxEx
+    end
+
+    subgraph DLQ_Stage ["📦 6. Isolated Dead-Letter Queues"]
+        DLQ_EMAIL["DLQ: email_notifications.failed<br/><i>(Failed emails)</i>"]:::dlqQueue
+        DLQ_PDF["DLQ: pdf_notifications.failed<br/><i>(Failed ticket PDFs)</i>"]:::dlqQueue
+    end
+
+    %% Step 1: Publishing
+    PUB -->|"1. Publish Event"| EX1
+
+    %% Step 2: Fanout Broadcast
+    EX1 -->|"2a. Broadcast"| Q_EMAIL
+    EX1 -->|"2b. Broadcast"| Q_PDF
+
+    %% Step 3: Consumption
+    Q_EMAIL -->|"3a. Consume"| C_EMAIL
+    Q_PDF -->|"3b. Consume"| C_PDF
+
+    %% Step 4: Happy path vs Failure path
+    C_EMAIL -.->|"Success: channel.ack(msg)"| Q_EMAIL
+    C_PDF ==>|"Failure: channel.nack(msg, false, false)"| Q_PDF
+
+    %% Step 5: RabbitMQ moves dead-lettered message
+    Q_PDF ==>|"Dead-letters with key 'pdf.failed'"| EX_DLX
+
+    %% Step 6: DLX routes to exact DLQ
+    EX_DLX -.->|"Routes 'email.failed'"| DLQ_EMAIL
+    EX_DLX ==>|"Routes 'pdf.failed'"| DLQ_PDF
+```
+
+#### Key Architecture Principles:
+- **Zero-Latency Checkout**: The client receives an immediate response as soon as payment succeeds and the event is pushed to RabbitMQ. Downstream work (rendering PDF fonts, third-party SMTP email latency) runs entirely in the background.
+- **Fanout Distribution**: The `booking_events` exchange broadcasts the booking event payload to all independent consumer queues simultaneously. Adding future consumers (e.g., SMS alerts, analytics) requires zero changes to the publisher.
+- **Guaranteed At-Least-Once Delivery**: Consumers use manual acknowledgment (`channel.ack(msg)`). If a worker crashes mid-execution, the unacknowledged message is automatically requeued rather than lost.
+- **Isolated Failure Domains (Direct DLX)**: When a worker rejects a message (`channel.nack(msg, false, false)`), RabbitMQ automatically transfers it to `booking_events.dlx`. Using a `direct` DLX with specific routing keys (`email.failed`, `pdf.failed`) guarantees that failed emails never contaminate the PDF failure queue, enabling clean inspection and replay.
 
 ---
 
@@ -267,6 +336,9 @@ sequenceDiagram
   - **Sorted-Set (`ZSET`) waitlist** — Automatic promotion of the next user in line when a held seat is cancelled or expires
 - ✅ **Dynamic Pricing Engine** — Strategy-pattern-based surcharges (occupancy-based, urgency-based), computed atomically inside the booking transaction and locked onto the booking permanently (`final_price`)
 - ✅ **Idempotent Payments** — `Idempotency-Key` header pattern (industry standard, same approach Stripe uses) prevents duplicate charges on network retries or repeated client requests
+- ✅ **Event-Driven Asynchronous Pipeline (RabbitMQ)** — Decoupled post-booking notification and ticket generation pipeline:
+  - Fanout event broadcasting to independent worker queues (`email_notifications`, `pdf_ticket_generation`)
+  - Direct Dead-Letter Exchange (`booking_events.dlx`) with targeted routing keys (`email.failed`, `pdf.failed`) for isolated DLQs and error triage without cross-service pollution
 - ✅ **CI Pipeline** — GitHub Actions runs lint, build, and tests on every push
 
 ---
@@ -281,7 +353,7 @@ sequenceDiagram
 
 ## 🗺️ Roadmap
 
-- 🔲 **Event-driven notifications** (Kafka / RabbitMQ integration for high-throughput message streaming)
+- ✅ **Event-driven notifications** (RabbitMQ fanout exchanges + direct DLX architecture)
 - 🔲 **Observability** (Prometheus metrics exporter + Grafana dashboards)
 - 🔲 **Full CI/CD deployment** (Automated Docker container builds and Kubernetes/Cloud deployment)
 
