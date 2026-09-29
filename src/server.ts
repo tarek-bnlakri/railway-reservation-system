@@ -4,6 +4,7 @@ import tripsRouter from './modules/trips/trips.routes.js'
 import bookingRouter from './modules/bookings/bookings.routes.js'
 import routeSearchRoutes from './modules/route-search/route-search.routes.js';
 import paymentsRoutes from './modules/payments/payments.routes.js';
+import aiSearchRouter from './modules/ai-search/ai-search.routes.js'
 import { startBookingExpiryLisitner } from './modules/bookings/booking-expiry.listener.js';
 import { connectToRabbitMQ } from './config/rabbitmq.js';
 import { setupExchange } from './modules/events/event-publisher.js';
@@ -17,6 +18,7 @@ app.use('/api/v1/trips',tripsRouter)
 app.use('/api/v1/bookings',bookingRouter)
 app.use('/api/v1/route-search', routeSearchRoutes);
 app.use('/api/v1/payments', paymentsRoutes);
+app.use('/api/v1/ai-search',aiSearchRouter)
 const PORT = process.env.PORT || 3000;
 
 
